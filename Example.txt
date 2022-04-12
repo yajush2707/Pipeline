@@ -1,0 +1,151 @@
+########## From ###########
+cs_engines_purpow_compute
+
+from base64 import b64decode
+import pandas as pd
+import json
+import random
+
+res=py_getContextVar("categorizer_output")
+
+
+### income ###
+import sys
+if sys.version_info[0] < 3: 
+    from StringIO import StringIO
+else:
+    from io import StringIO
+
+content=StringIO(res)
+df=pd.read_csv(content)
+
+df["Buchungstag"]=pd.to_datetime(df["Buchungstag"])
+
+df["month"]=df["Buchungstag"].apply(lambda d:d.month)
+df["year"]=df["Buchungstag"].apply(lambda d:d.year)
+df["dow"]=df["Buchungstag"].apply(lambda d:d.dayofweek)
+
+
+#duration
+#amount_income = df[(df["Lohn"]==1)].groupby(["year","month"])["Betrag"].sum().mean()
+overall_income= df[(df["Lohn"]==1) & (df["Betrag"]>0.)]["Betrag"].sum()
+months=len(df.groupby(["year","month"]))
+amount_income=overall_income/months
+
+pltool.printLine(str(df["Buchungstag"]))
+pltool.printLine(str(df.groupby(["year","month"]).groups))
+pltool.printLine("overall income:"+str(overall_income))
+pltool.printLine("income: "+str(amount_income))
+pltool.printLine("Computing income indicator..")
+
+### expenses ###
+
+result = -df[(df["Miete"]==1) &(df["Betrag"]<0)].groupby(["year","month"])["Betrag"].sum().mean()
+
+pltool.printLine("expenses: "+str(result))
+pltool.printLine("Computing expense indicator..")
+             
+purpow = amount_income - result
+             
+pltool.printLine("Purchasing Power: "+str(purpow))
+pltool.printLine("Process EC Context:  "+str(processExecutionContext))
+
+res={"purchasing_power":{
+  	        "label":"Purchasing Power",
+            "value":str(purpow),
+            "type":"numeric",
+    		"description":"Balance available after deduction of monthly expenses.",
+            "property":"purchasing power"
+        },
+         "income":{
+           "label":"Income",
+           "value":str(amount_income),
+           "type":"numeric",
+           "description":"Monthly net income",
+           "property":"income",
+         },
+         "expenses":{
+           "label":"Expenses",
+           "value":str(result),
+           "type":"numeric",
+           "description":"Regular monthly expenses such as rent, incidental costs, car, insurance, etc.",
+           "property":"expenses"
+         }
+    }
+
+#res=json.dumps({"purchasing_power":str(purpow),"income":str(amount_income+random.uniform(0, 1.)),"expenses":str(result)})
+#try:
+#	pass
+pltool.setContextVar(processExecutionContext,"purpow",json.dumps(res))
+#except Error as e:
+#    pltool.printLine(e)
+
+return purpow
+
+
+########### To ############
+
+def cs_engines_purpow_compute(INPUT.TXT):
+    from base64 import b64decode
+    import random
+
+    res= INPUT.TXT
+
+
+    ### income ###
+    content=StringIO(res)
+    df=pd.read_csv(content)
+
+    df["Buchungstag"]=pd.to_datetime(df["Buchungstag"])
+
+    df["month"]=df["Buchungstag"].apply(lambda d:d.month)
+    df["year"]=df["Buchungstag"].apply(lambda d:d.year)
+    df["dow"]=df["Buchungstag"].apply(lambda d:d.dayofweek)
+
+
+    #duration
+    #amount_income = df[(df["Lohn"]==1)].groupby(["year","month"])["Betrag"].sum().mean()
+    overall_income= df[(df["Lohn"]==1) & (df["Betrag"]>0.)]["Betrag"].sum()
+    months=len(df.groupby(["year","month"]))
+    amount_income=overall_income/months
+
+    print(str(df["Buchungstag"]))
+    print(str(df.groupby(["year","month"]).groups))
+    print("overall income:"+str(overall_income))
+    print("income: "+str(amount_income))
+    print("Computing income indicator..")
+
+    ### expenses ###
+
+    result = -df[(df["Miete"]==1) &(df["Betrag"]<0)].groupby(["year","month"])["Betrag"].sum().mean()
+
+    print("expenses: "+str(result))
+    print("Computing expense indicator..")
+
+    purpow = amount_income - result
+
+    print("Purchasing Power: "+str(purpow))
+
+    res={"purchasing_power":{
+                "label":"Purchasing Power",
+                "value":str(purpow),
+                "type":"numeric",
+                "description":"Balance available after deduction of monthly expenses.",
+                "property":"purchasing power"
+            },
+             "income":{
+               "label":"Income",
+               "value":str(amount_income),
+               "type":"numeric",
+               "description":"Monthly net income",
+               "property":"income",
+             },
+             "expenses":{
+               "label":"Expenses",
+               "value":str(result),
+               "type":"numeric",
+               "description":"Regular monthly expenses such as rent, incidental costs, car, insurance, etc.",
+               "property":"expenses"
+             }
+        }
+    return purpow
